@@ -1,0 +1,2061 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1팀 식수 체크</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f0e8;
+    --surface: #fffdf7;
+    --border: #d6c9a8;
+    --accent: #c8783a;
+    --accent-light: #f0dcc0;
+    --text: #2c2416;
+    --text-sub: #7a6a50;
+    --male-header: #b8d0e8;
+    --female-header: #f5c8c8;
+    --row-hover: rgba(200,120,58,0.07);
+  }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    color: var(--text);
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  /* ===== 탭 ===== */
+  .tab-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 5px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-sub);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    color: white;
+  }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  /* ===== 날짜 (수정 가능) ===== */
+  .date-wrap {
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  #dateDisplay {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1.5px dashed transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  #dateDisplay:hover {
+    border-color: var(--border);
+    background: var(--surface);
+  }
+  #dateDisplay .edit-icon {
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    opacity: 0.7;
+  }
+  #dateInput {
+    display: none;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    padding: 7px 12px;
+    border: 1.5px solid var(--accent);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: center;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--text-sub);
+    margin-bottom: 16px;
+  }
+
+  /* ===== 주최자 안내 배너 ===== */
+  .host-banner {
+    display: none;
+    background: var(--accent-light);
+    border: 1.5px solid var(--accent);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .host-banner strong { color: var(--accent); }
+
+  /* ===== 요약 ===== */
+  .summary-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
+    margin-bottom: 20px;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 4px;
+    text-align: center;
+  }
+  .summary-card.total { border-color: var(--accent); }
+  .summary-card .day-label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 2px; }
+  .summary-card .day-count { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .summary-card.male-card .day-count { color: #4a78a8; }
+  .summary-card.female-card .day-count { color: #c86878; }
+  .summary-card.star-card .day-count { color: #c8a23a; }
+
+  /* ===== 테이블 ===== */
+  .table-section {
+    background: var(--surface);
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .section-header {
+    padding: 10px 16px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text-sub);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-header.male { background: var(--male-header); }
+  .section-header.female { background: var(--female-header); }
+  .section-header.hosts { background: var(--accent-light); }
+  .section-header .count-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: rgba(255,255,255,0.6);
+    border-radius: 20px;
+    padding: 2px 10px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    padding: 8px 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-sub);
+    border-bottom: 1.5px solid var(--border);
+    text-align: center;
+  }
+  thead th.name-col { text-align: left; padding-left: 14px; }
+  thead th.check-col { width: 80px; }
+  thead th.act-col { width: 120px; }
+
+  tbody tr {
+    border-bottom: 1px solid #ede6d6;
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--row-hover); }
+
+  td {
+    padding: 9px 4px;
+    text-align: center;
+    font-size: 0.82rem;
+  }
+  td.name-cell {
+    text-align: left;
+    padding-left: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  tr.intro-row td.name-cell {
+    color: var(--text-sub);
+    font-size: 0.78rem;
+    padding-left: 24px;
+  }
+
+  /* 이름 수정 */
+  .name-edit-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.72rem;
+    opacity: 0.4;
+    margin-left: 5px;
+    padding: 2px 3px;
+    vertical-align: middle;
+    transition: opacity 0.15s;
+  }
+  .name-edit-btn:hover { opacity: 1; }
+  .name-edit-input {
+    width: 100px;
+    padding: 4px 7px;
+    border: 1.5px solid var(--accent);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: white;
+    color: var(--text);
+    outline: none;
+  }
+
+  .check-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
+    color: transparent;
+  }
+  .check-btn.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .check-btn:active { transform: scale(0.92); }
+
+  /* ===== 액션 셀 ===== */
+  .action-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-right: 4px;
+  }
+  .delete-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: #f0c0c0;
+    color: #a03030;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .delete-btn:hover { background: #e09090; }
+
+  .intro-add-btn {
+    font-size: 0.68rem;
+    padding: 3px 6px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    background: none;
+    color: var(--text-sub);
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .intro-add-btn:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .order-toggle-btn {
+    font-size: 0.68rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1.5px solid var(--accent);
+    background: var(--surface);
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: 600;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .order-toggle-btn.open { background: var(--accent); color: white; }
+
+  /* 초대 추가 인풋 */
+  .intro-input-row td {
+    padding: 6px 8px 6px 28px;
+    background: #f8f4ec;
+  }
+  .intro-input-wrap { display: flex; gap: 6px; align-items: center; }
+  .intro-input-wrap input {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    background: white;
+    color: var(--text);
+    outline: none;
+  }
+  .intro-input-wrap input:focus { border-color: var(--accent); }
+  .intro-confirm-btn {
+    padding: 5px 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .intro-cancel-btn {
+    padding: 5px 8px;
+    background: none;
+    color: var(--text-sub);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+
+  .add-row {
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    border-top: 1px dashed var(--border);
+  }
+  .add-row input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .add-row input:focus { border-color: var(--accent); }
+  .add-row button {
+    padding: 7px 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .add-row button:hover { background: #a85f25; }
+
+  /* ===== 체크 초기화 ===== */
+  .reset-wrap { text-align: center; margin-top: 8px; }
+  .reset-btn {
+    font-size: 0.75rem;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-sub);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .reset-btn:hover { background: var(--surface); }
+
+  /* ===== 주최자 탭 ===== */
+  .hosts-title {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .hosts-sub {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--text-sub);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .host-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-bottom: 1px solid #ede6d6;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .host-row:hover { background: var(--row-hover); }
+  .host-row:last-child { border-bottom: none; }
+  .host-row.current-month {
+    background: var(--accent-light);
+  }
+  .host-month {
+    width: 44px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    flex-shrink: 0;
+    text-align: center;
+  }
+  .host-row.current-month .host-month { color: var(--accent); }
+  .host-names {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .host-names.empty {
+    color: #c0b496;
+    font-weight: 400;
+  }
+  .host-arrow {
+    font-size: 0.6rem;
+    color: var(--text-sub);
+    flex-shrink: 0;
+  }
+
+  /* 주최자 선택 칩 */
+  .host-picker {
+    padding: 12px 14px 14px;
+    background: #f8f4ec;
+    border-bottom: 1px solid #ede6d6;
+  }
+  .picker-group { margin-bottom: 12px; }
+  .picker-group:last-child { margin-bottom: 0; }
+  .picker-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    margin-bottom: 7px;
+  }
+  .chip-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .name-chip {
+    padding: 7px 13px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-family: inherit;
+    font-size: 0.78rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+  }
+  .name-chip:active { transform: scale(0.94); }
+  .name-chip.selected {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    font-weight: 600;
+  }
+
+  /* ===== 주문 입력 (식수 탭, 체크된 사람 아래 펼쳐짐) ===== */
+  .order-entry-row td {
+    padding: 6px 12px 12px 24px;
+    background: #faf6ee;
+  }
+  .order-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .order-field-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .order-field-label {
+    font-size: 0.72rem;
+    color: var(--text-sub);
+    font-weight: 700;
+  }
+  .order-chip-box {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .order-chip {
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-family: inherit;
+    font-size: 0.76rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.1s;
+  }
+  .order-chip:active { transform: scale(0.94); }
+  .order-chip.selected {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    font-weight: 600;
+  }
+  .order-empty-hint {
+    font-size: 0.72rem;
+    color: var(--text-sub);
+    padding: 2px 0;
+  }
+  .order-text-input {
+    padding: 7px 11px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    background: white;
+    color: var(--text);
+    outline: none;
+    max-width: 240px;
+  }
+  .order-text-input:focus { border-color: var(--accent); }
+  .order-save-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  .order-save-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .order-save-btn:active { background: #a85f25; }
+
+  /* ===== 주문표 탭 ===== */
+  .fields-editor {
+    padding: 12px 14px;
+  }
+  .field-block {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 11px;
+    margin-bottom: 10px;
+    background: #fffdf7;
+  }
+  .field-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 9px;
+  }
+  .field-type-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 9px;
+  }
+  .type-toggle {
+    flex: 1;
+    padding: 6px 0;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-sub);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .type-toggle.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .field-text-note {
+    font-size: 0.74rem;
+    color: var(--text-sub);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 8px 11px;
+  }
+  .field-name-input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: white;
+    color: var(--text);
+    outline: none;
+  }
+  .field-name-input:focus { border-color: var(--accent); }
+  .field-opt-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+  .field-opt-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 6px 5px 11px;
+    border-radius: 16px;
+    background: var(--accent-light);
+    border: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+  .field-opt-chip .opt-del {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(160,48,48,0.15);
+    color: #a03030;
+    font-size: 0.68rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .opt-add-box {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    margin-top: 2px;
+  }
+  .opt-add-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 11px;
+    border: 1.5px dashed var(--border);
+    border-radius: 16px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .opt-add-input:focus { border-color: var(--accent); }
+  .opt-add-btn {
+    flex-shrink: 0;
+    width: 42px;
+    border-radius: 16px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .opt-add-btn:active { background: #a85f25; }
+  .field-add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .field-add-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1.5px dashed var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .field-add-row input:focus { border-color: var(--accent); }
+  .field-add-row button {
+    flex-shrink: 0;
+    padding: 7px 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .order-table-wrap { overflow-x: auto; }
+  table.order-table { width: 100%; border-collapse: collapse; }
+  table.order-table th {
+    padding: 9px 8px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    border-bottom: 1.5px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+    background: var(--accent-light);
+  }
+  table.order-table th.num-col { width: 30px; text-align: center; }
+  table.order-table td {
+    padding: 9px 8px;
+    font-size: 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid #ede6d6;
+    vertical-align: top;
+  }
+  table.order-table td.num-col { text-align: center; color: var(--text-sub); font-weight: 600; }
+  table.order-table td.name-col { font-weight: 600; white-space: nowrap; }
+  table.order-table td.empty-cell { color: #c0b496; }
+  table.order-table tr.star-order td.name-col { color: #c8a23a; }
+  .order-empty-msg {
+    text-align: center;
+    padding: 30px 16px;
+    color: var(--text-sub);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  .order-tally {
+    padding: 14px;
+  }
+  .tally-block { margin-bottom: 14px; }
+  .tally-block:last-child { margin-bottom: 0; }
+  .tally-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-sub);
+    margin-bottom: 8px;
+  }
+  .tally-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tally-item {
+    padding: 5px 11px;
+    border-radius: 16px;
+    background: var(--accent-light);
+    border: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+  .tally-item b { color: var(--accent); margin-left: 3px; }
+  .tally-empty {
+    font-size: 0.76rem;
+    color: #c0b496;
+    padding: 3px 0;
+  }
+  .copy-btn-wrap { text-align: center; padding: 4px 0 14px; }
+  .copy-order-btn {
+    font-size: 0.78rem;
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1.5px solid var(--accent);
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .copy-order-btn:hover { background: var(--accent-light); }
+
+  /* ===== 안내사항 ===== */
+  .notice-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .notice-edit {
+    width: 100%;
+    min-height: 120px;
+    padding: 14px;
+    border: none;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    color: var(--text);
+    background: transparent;
+    resize: vertical;
+    outline: none;
+  }
+  .notice-edit:focus { background: #fffdf5; }
+  .notice-edit::placeholder { color: #c0b496; }
+  /* 읽기 전용 표시 (식수/주최자 탭) */
+  .notice-view {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .notice-view .notice-head {
+    padding: 9px 14px;
+    background: var(--accent-light);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-sub);
+  }
+  .notice-view .notice-body {
+    padding: 13px 15px;
+    font-size: 0.84rem;
+    line-height: 1.65;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .notice-view .notice-body.empty {
+    color: #c0b496;
+    font-style: italic;
+  }
+
+  #loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-sub);
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 480px) {
+    .check-btn { width: 34px; height: 34px; font-size: 1rem; }
+    td { padding: 8px 2px; }
+    td.name-cell { padding-left: 10px; font-size: 0.78rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="checkTab">🍚 식수 체크</button>
+  <button class="tab-btn" data-tab="orderTab">📝 주문표</button>
+  <button class="tab-btn" data-tab="hostTab">📌 주최자</button>
+</div>
+
+<div id="loading">데이터 불러오는 중...</div>
+
+<!-- ===== 탭 1 : 식수 체크 ===== -->
+<div id="checkTab" class="tab-page active" style="display:none">
+
+  <div class="date-wrap">
+    <span id="dateDisplay" title="탭해서 날짜 수정">
+      <span id="dateText">날짜를 입력하세요</span>
+      <span class="edit-icon">✏️</span>
+    </span>
+    <input type="text" id="dateInput" maxlength="30">
+  </div>
+  <div class="subtitle" id="teamSubtitle">팀별교제 식수인원 조사</div>
+
+  <div class="host-banner" id="hostBanner"></div>
+
+  <div class="notice-view" id="checkNotice">
+    <div class="notice-head">📢 안내사항</div>
+    <div class="notice-body" id="checkNoticeBody"></div>
+  </div>
+
+  <div class="summary-bar">
+    <div class="summary-card male-card"><div class="day-label">형제</div><div class="day-count" id="sum-male">-</div></div>
+    <div class="summary-card female-card"><div class="day-label">자매</div><div class="day-count" id="sum-female">-</div></div>
+    <div class="summary-card star-card"><div class="day-label">★</div><div class="day-count" id="sum-star">-</div></div>
+    <div class="summary-card total"><div class="day-label">전체</div><div class="day-count" id="sum-total">-</div></div>
+  </div>
+
+  <div class="table-section">
+    <div class="section-header male"><span>👨 형제</span><span class="count-badge" id="badge-male">-</span></div>
+    <table>
+      <thead>
+        <tr>
+          <th class="name-col">이름</th>
+          <th class="check-col">식수</th>
+          <th class="act-col"></th>
+        </tr>
+      </thead>
+      <tbody id="maleBody"></tbody>
+    </table>
+    <div class="add-row">
+      <input type="text" id="maleInput" placeholder="이름 입력" maxlength="10">
+      <button onclick="addPerson('male')">추가</button>
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="section-header female"><span>👩 자매</span><span class="count-badge" id="badge-female">-</span></div>
+    <table>
+      <thead>
+        <tr>
+          <th class="name-col">이름</th>
+          <th class="check-col">식수</th>
+          <th class="act-col"></th>
+        </tr>
+      </thead>
+      <tbody id="femaleBody"></tbody>
+    </table>
+    <div class="add-row">
+      <input type="text" id="femaleInput" placeholder="이름 입력" maxlength="10">
+      <button onclick="addPerson('female')">추가</button>
+    </div>
+  </div>
+
+  <div class="reset-wrap">
+    <button class="reset-btn" onclick="resetChecks()">✓ 체크 전체 초기화</button>
+  </div>
+
+</div>
+
+<!-- ===== 탭 2 : 주문표 ===== -->
+<div id="orderTab" class="tab-page" style="display:none">
+
+  <div class="hosts-title" id="orderTitle">주문표</div>
+  <div class="hosts-sub">
+    주최자가 받을 항목(음료·음식·차번호 등)을 자유롭게 만드세요.<br>
+    식수 체크란에서 체크하면 이 항목에 맞춰 입력칸이 생깁니다.
+  </div>
+
+  <!-- 항목 편집 -->
+  <div class="table-section">
+    <div class="section-header hosts"><span>🧩 받을 항목</span><span class="count-badge" id="orderMonthBadge">-</span></div>
+    <div class="fields-editor" id="fieldsEditor"></div>
+  </div>
+
+  <!-- 주문 표 -->
+  <div class="table-section">
+    <div class="section-header hosts"><span>📋 주문 현황</span><span class="count-badge" id="orderCountBadge">-</span></div>
+    <div class="order-table-wrap"><div id="orderTableArea"></div></div>
+    <div class="copy-btn-wrap">
+      <button class="copy-order-btn" onclick="copyOrderText()">📄 텍스트로 복사</button>
+    </div>
+  </div>
+
+  <!-- 집계 -->
+  <div class="table-section" id="tallySection">
+    <div class="section-header hosts"><span>🧮 항목별 집계</span></div>
+    <div class="order-tally" id="orderTally"></div>
+  </div>
+
+  <!-- 안내사항 편집 -->
+  <div class="table-section">
+    <div class="section-header hosts"><span>📢 안내사항</span><span class="count-badge" id="noticeMonthBadge">-</span></div>
+    <div class="notice-box">
+      <textarea class="notice-edit" id="noticeEdit" placeholder="단톡방에 올릴 안내사항을 적어주세요.&#10;예) 주차는 K스퀘어 마곡 지하3층, 마곡타워1로 오세요 🙏&#10;음료/음식/차번호 남겨주세요!"></textarea>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== 탭 3 : 주최자 ===== -->
+<div id="hostTab" class="tab-page" style="display:none">
+
+  <div class="hosts-title">팀별교제 주최 형제자매</div>
+  <div class="hosts-sub">
+    달을 탭하면 명단이 열려요. 이름을 탭해서 주최자를 선택하세요.<br>
+    선택된 주최자는 해당 달의 식수 명단에서 자동으로 제외됩니다.
+  </div>
+
+  <div class="table-section">
+    <div class="section-header hosts"><span>📌 월별 주최자</span></div>
+    <div id="hostList"></div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+/* ═══════════════════════════════════════════════════════════
+   ⚙️ 설정 — 이 파일 하나로 모든 팀에서 씁니다
+   ───────────────────────────────────────────────────────────
+   · Firebase 주소는 아래 한 줄만 바꾸면 됩니다.
+   · 팀 구분은 주소(URL)로 자동 인식합니다:
+       loyalmir.github.io/1team/  → 1팀
+       loyalmir.github.io/2team/  → 2팀  ... 등
+   · 새 팀은 저장소만 (예: 5team) 만들어 이 파일 그대로 올리면 됩니다.
+   ═══════════════════════════════════════════════════════════ */
+const FIREBASE_URL = "https://otherteam-2b3f6-default-rtdb.firebaseio.com/";
+
+// 주소에서 팀 번호 자동 인식 (예: /2team/ → "2", /team3/ → "3")
+function detectTeam() {
+  const path = location.pathname.toLowerCase();
+  const m = path.match(/(\d+)\s*team|team\s*(\d+)/);
+  const num = m ? (m[1] || m[2]) : null;
+  return num ? { num, key: `siksu/team${num}`, label: `${num}팀` }
+             : { num: null, key: "siksu/teamday", label: "" };
+}
+const TEAM = detectTeam();
+const DB_PATH = TEAM.key;
+
+/* ── 처음 켰을 때 들어갈 기본 명단 (비워둠) ──
+   앱에서 직접 "추가" 버튼으로 이름을 넣어도 되고,
+   아래 배열에 미리 적어둬도 됩니다.
+   예) { name:'홍길동', intro:false }   ← 일반
+       { name:'초대손님', intro:true }  ← ★(초대) 표시
+*/
+const DEFAULT_MALE = [];
+const DEFAULT_FEMALE = [];
+
+const app = initializeApp({ databaseURL: FIREBASE_URL });
+const db = getDatabase(app);
+
+let data = { date: "날짜를 입력하세요", male: [], female: [], hosts: {} };
+
+const DEFAULT_HOSTS = {
+  "1": "", "2": "", "3": "", "4": "", "5": "", "6": "",
+  "7": "", "8": "", "9": "", "10": "", "11": "", "12": ""
+};
+
+// 달별 주문 항목(열) 정의. 각 항목은 {name, type, options[]} 구조.
+// type: 'choice'(목록에서 선택) | 'text'(개인 직접입력)
+const DEFAULT_FIELDS = [
+  { name: "음료", type: "choice", options: [] },
+  { name: "음식", type: "choice", options: [] }
+];
+
+function makePerson(name, intro=false) {
+  return { name, intro, checked: false, order: {} };
+}
+
+// 문자열/구버전 항목을 {name, type, options} 구조로 정규화
+function normalizeField(f) {
+  if (typeof f === 'string') return { name: f, type: 'choice', options: [] };
+  return {
+    name: f.name || '',
+    type: f.type === 'text' ? 'text' : 'choice',
+    options: Array.isArray(f.options) ? f.options : []
+  };
+}
+
+// 달별 항목 가져오기 (없으면 기본값)
+function getFields() {
+  const month = getCurrentMonth();
+  if (data.orderFields && data.orderFields[month] && data.orderFields[month].length) {
+    return data.orderFields[month].map(normalizeField);
+  }
+  return DEFAULT_FIELDS.map(f => ({ name: f.name, type: f.type, options: [...f.options] }));
+}
+
+// 달별 안내사항
+function getNotice() {
+  const month = getCurrentMonth();
+  return (data.notices && data.notices[month]) || '';
+}
+function setNotice(text) {
+  const month = getCurrentMonth();
+  if (!data.notices) data.notices = {};
+  data.notices[month] = text;
+  saveData();
+}
+
+async function loadData() {
+  const snap = await get(ref(db, DB_PATH));
+  if (snap.exists()) {
+    data = snap.val();
+    if (!data.date) data.date = "날짜를 입력하세요";
+    if (!data.hosts) { data.hosts = {...DEFAULT_HOSTS}; saveData(); }
+    // 글자 입력 방식 때 저장된 주최자 명단 1회 초기화 (탭 선택 방식 전환)
+    if (!data.hostsCleared) {
+      data.hosts = {...DEFAULT_HOSTS};
+      data.hostsCleared = true;
+      saveData();
+    }
+    ['male','female'].forEach(g => {
+      if (!data[g]) data[g] = [];
+      data[g].forEach(p => {
+        if (typeof p.checked !== 'boolean') p.checked = false;
+        if (!p.order || typeof p.order !== 'object') p.order = {};
+      });
+    });
+    if (!data.orderFields) data.orderFields = {};
+    if (!data.notices) data.notices = {};
+    // orderFields 구조 마이그레이션 (문자열→객체, type 부여) 1회
+    if (!data.orderFieldsV3) {
+      Object.keys(data.orderFields).forEach(mk => {
+        const arr = (data.orderFields[mk] || []).map(f => {
+          if (typeof f === 'string') {
+            return { name: f, type: (f === '차번호' || f === '차량번호') ? 'text' : 'choice', options: [] };
+          }
+          return {
+            name: f.name || '',
+            type: f.type === 'text' ? 'text' : ((f.name === '차번호' || f.name === '차량번호') ? 'text' : 'choice'),
+            options: Array.isArray(f.options) ? f.options : []
+          };
+        }).filter(f => f.name);
+        data.orderFields[mk] = arr;
+      });
+      data.orderFieldsV3 = true;
+      saveData();
+    }
+  } else {
+    data = {
+      date: "날짜를 입력하세요",
+      male: DEFAULT_MALE.map(p => makePerson(p.name, p.intro)),
+      female: DEFAULT_FEMALE.map(p => makePerson(p.name, p.intro)),
+      hosts: {...DEFAULT_HOSTS},
+      hostsCleared: true,
+      orderFields: {},
+      orderFieldsV3: true,
+      notices: {}
+    };
+    await set(ref(db, DB_PATH), data);
+  }
+  render();
+  renderHosts();
+  renderOrderTab();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('teamSubtitle').textContent =
+    (TEAM.label ? TEAM.label + ' · ' : '') + '팀별교제 식수인원 조사';
+  document.getElementById('checkTab').style.display = '';
+  document.getElementById('orderTab').style.display = '';
+  document.getElementById('hostTab').style.display = '';
+}
+
+function saveData() { set(ref(db, DB_PATH), data); }
+
+/* ===== 탭 전환 ===== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ===== 현재 달 / 주최자 제외 로직 ===== */
+function getCurrentMonth() {
+  const m = (data.date || '').match(/(\d{1,2})\s*월/);
+  return m ? String(parseInt(m[1], 10)) : null;
+}
+
+function getHostNames() {
+  const month = getCurrentMonth();
+  if (!month || !data.hosts || !data.hosts[month]) return [];
+  return data.hosts[month].split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function isHidden(person, hostNames) {
+  return !person.intro && hostNames.includes(person.name);
+}
+
+/* ===== 날짜 수정 ===== */
+const dateDisplay = document.getElementById('dateDisplay');
+const dateText = document.getElementById('dateText');
+const dateInput = document.getElementById('dateInput');
+
+dateDisplay.addEventListener('click', () => {
+  dateInput.value = data.date;
+  dateDisplay.style.display = 'none';
+  dateInput.style.display = 'block';
+  dateInput.focus();
+  dateInput.select();
+});
+
+function commitDate() {
+  const v = dateInput.value.trim();
+  if (v) {
+    data.date = v;
+    saveData();
+  }
+  dateInput.style.display = 'none';
+  dateDisplay.style.display = 'inline-flex';
+  render();
+  renderHosts();
+  renderOrderTab();
+}
+dateInput.addEventListener('blur', commitDate);
+dateInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') dateInput.blur();
+  if (e.key === 'Escape') { dateInput.value = data.date; dateInput.blur(); }
+});
+
+function renderDate() {
+  dateText.textContent = data.date;
+  document.title = `${TEAM.label ? TEAM.label + ' · ' : ''}${data.date}`;
+}
+
+/* ===== 주최자 배너 ===== */
+function renderHostBanner() {
+  const banner = document.getElementById('hostBanner');
+  const month = getCurrentMonth();
+  const names = getHostNames();
+  if (month && names.length) {
+    banner.innerHTML = `📌 <strong>${month}월 주최</strong> : ${names.join(', ')}`;
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+/* ===== 렌더 ===== */
+function render() {
+  renderDate();
+  renderHostBanner();
+  renderGroup('male', 'maleBody');
+  renderGroup('female', 'femaleBody');
+  updateSummary();
+}
+
+let introOpenState = { male: -1, female: -1 };
+let nameEditState = { group: null, idx: -1 };
+let orderOpenKey = null;  // "group:idx" 하나만 펼침 (기본 닫힘)
+
+function renderGroup(group, tbodyId) {
+  const tbody = document.getElementById(tbodyId);
+  tbody.innerHTML = '';
+  const hostNames = getHostNames();
+
+  (data[group]||[]).forEach((person, idx) => {
+    // 이번 달 주최자는 명단에서 숨김
+    if (isHidden(person, hostNames)) return;
+
+    const tr = document.createElement('tr');
+    if (person.intro) tr.classList.add('intro-row');
+
+    const nameTd = document.createElement('td');
+    nameTd.className = 'name-cell';
+
+    if (nameEditState.group === group && nameEditState.idx === idx) {
+      // 이름 수정 모드
+      const editInp = document.createElement('input');
+      editInp.type = 'text';
+      editInp.className = 'name-edit-input';
+      editInp.value = person.name;
+      editInp.maxLength = 10;
+
+      let committed = false;
+      const commit = () => {
+        if (committed) return;
+        committed = true;
+        const v = editInp.value.trim();
+        if (v) {
+          data[group][idx].name = v;
+          saveData();
+        }
+        nameEditState = { group: null, idx: -1 };
+        render();
+      };
+      const cancel = () => {
+        committed = true;
+        nameEditState = { group: null, idx: -1 };
+        render();
+      };
+
+      editInp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') cancel();
+      });
+      editInp.addEventListener('blur', commit);
+
+      nameTd.appendChild(editInp);
+      setTimeout(() => { editInp.focus(); editInp.select(); }, 50);
+    } else {
+      // 일반 표시 + 수정 아이콘
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = person.intro ? `★ ${person.name}` : person.name;
+      nameTd.appendChild(nameSpan);
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'name-edit-btn';
+      editBtn.textContent = '✏️';
+      editBtn.title = '이름 수정';
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        nameEditState = { group, idx };
+        render();
+      };
+      nameTd.appendChild(editBtn);
+    }
+
+    tr.appendChild(nameTd);
+
+    // 식수 체크 (단일)
+    const td = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.className = 'check-btn' + (person.checked ? ' checked' : '');
+    btn.textContent = person.checked ? '○' : '';
+    btn.onclick = () => { toggleCheck(group, idx); };
+    td.appendChild(btn);
+    tr.appendChild(td);
+
+    // 액션 셀
+    const actTd = document.createElement('td');
+    const actDiv = document.createElement('div');
+    actDiv.className = 'action-cell';
+
+    // 주문 펼치기/접기 토글 (체크된 사람만)
+    if (person.checked) {
+      const okey = `${group}:${idx}`;
+      const isOpen = orderOpenKey === okey;
+      const ordBtn = document.createElement('button');
+      ordBtn.className = 'order-toggle-btn' + (isOpen ? ' open' : '');
+      ordBtn.textContent = isOpen ? '주문 ▴' : '주문 ▾';
+      ordBtn.title = '주문 입력 펼치기';
+      ordBtn.onclick = (e) => {
+        e.stopPropagation();
+        orderOpenKey = isOpen ? null : okey;  // 다른 걸 열면 이전 건 자동으로 닫힘
+        render();
+      };
+      actDiv.appendChild(ordBtn);
+    }
+
+    if (!person.intro) {
+      const introBtn = document.createElement('button');
+      introBtn.className = 'intro-add-btn';
+      introBtn.textContent = '+★';
+      introBtn.title = '★ 추가';
+      introBtn.onclick = (e) => {
+        e.stopPropagation();
+        introOpenState[group] = idx;
+        render();
+      };
+      actDiv.appendChild(introBtn);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-btn';
+    delBtn.textContent = '×';
+    delBtn.onclick = () => deletePerson(group, idx);
+    actDiv.appendChild(delBtn);
+
+    actTd.appendChild(actDiv);
+    tr.appendChild(actTd);
+    tbody.appendChild(tr);
+
+    // 체크된 사람 → 주문 입력 행 (펼쳐졌을 때만 표시)
+    if (person.checked && orderOpenKey === `${group}:${idx}`) {
+      const fields = getFields();
+      const orderTr = document.createElement('tr');
+      orderTr.className = 'order-entry-row';
+      const orderTd = document.createElement('td');
+      orderTd.colSpan = 3;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'order-fields';
+
+      if (!fields.length) {
+        const hint = document.createElement('div');
+        hint.className = 'order-empty-hint';
+        hint.textContent = '주문표 탭에서 받을 항목을 먼저 만들어 주세요.';
+        wrap.appendChild(hint);
+      } else {
+        fields.forEach(field => {
+          const fieldDiv = document.createElement('div');
+          fieldDiv.className = 'order-field-chips';
+
+          const flabel = document.createElement('div');
+          flabel.className = 'order-field-label';
+          flabel.textContent = field.name;
+          fieldDiv.appendChild(flabel);
+
+          if (field.type === 'text') {
+            // 개인 직접 입력 (예: 차번호)
+            const finput = document.createElement('input');
+            finput.type = 'text';
+            finput.className = 'order-text-input';
+            finput.value = (person.order && person.order[field.name]) || '';
+            finput.placeholder = `${field.name} 입력`;
+            finput.maxLength = 30;
+            finput.oninput = () => {
+              if (!data[group][idx].order) data[group][idx].order = {};
+              data[group][idx].order[field.name] = finput.value;
+            };
+            finput.onblur = () => { saveData(); renderOrderTab(); };
+            fieldDiv.appendChild(finput);
+          } else {
+            // 선택지 칩
+            const chipBox = document.createElement('div');
+            chipBox.className = 'order-chip-box';
+
+            if (!field.options.length) {
+              const hint = document.createElement('span');
+              hint.className = 'order-empty-hint';
+              hint.textContent = '주문표 탭에서 선택지를 추가해 주세요';
+              chipBox.appendChild(hint);
+            } else {
+              const cur = (person.order && person.order[field.name]) || '';
+              field.options.forEach(opt => {
+                const chip = document.createElement('button');
+                chip.className = 'order-chip' + (cur === opt ? ' selected' : '');
+                chip.textContent = opt;
+                chip.onclick = () => {
+                  if (!data[group][idx].order) data[group][idx].order = {};
+                  data[group][idx].order[field.name] = (cur === opt) ? '' : opt;
+                  saveData();
+                  render();
+                  renderOrderTab();
+                };
+                chipBox.appendChild(chip);
+              });
+            }
+            fieldDiv.appendChild(chipBox);
+          }
+
+          wrap.appendChild(fieldDiv);
+        });
+      }
+
+      // 저장(완료) 버튼 → 저장하고 접기
+      const saveWrap = document.createElement('div');
+      saveWrap.className = 'order-save-wrap';
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'order-save-btn';
+      saveBtn.textContent = '✓ 저장하고 닫기';
+      saveBtn.onclick = () => {
+        saveData();
+        orderOpenKey = null;
+        render();
+        renderOrderTab();
+      };
+      saveWrap.appendChild(saveBtn);
+      wrap.appendChild(saveWrap);
+
+      orderTd.appendChild(wrap);
+      orderTr.appendChild(orderTd);
+      tbody.appendChild(orderTr);
+    }
+
+    // 초대 추가 인풋 행
+    if (!person.intro && introOpenState[group] === idx) {
+      const inputTr = document.createElement('tr');
+      inputTr.className = 'intro-input-row';
+      const inputTd = document.createElement('td');
+      inputTd.colSpan = 3;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'intro-input-wrap';
+
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = `${person.name} ★ 이름 입력`;
+      inp.maxLength = 10;
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'intro-confirm-btn';
+      confirmBtn.textContent = '추가';
+      confirmBtn.onclick = () => {
+        const name = inp.value.trim();
+        if (!name) return;
+        data[group].splice(idx + 1, 0, makePerson(name, true));
+        introOpenState[group] = -1;
+        saveData();
+        render();
+      };
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'intro-cancel-btn';
+      cancelBtn.textContent = '취소';
+      cancelBtn.onclick = () => { introOpenState[group] = -1; render(); };
+
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') confirmBtn.click();
+        if (e.key === 'Escape') cancelBtn.click();
+      });
+
+      wrap.appendChild(inp);
+      wrap.appendChild(confirmBtn);
+      wrap.appendChild(cancelBtn);
+      inputTd.appendChild(wrap);
+      inputTr.appendChild(inputTd);
+      tbody.appendChild(inputTr);
+
+      setTimeout(() => inp.focus(), 50);
+    }
+  });
+}
+
+function toggleCheck(group, idx) {
+  data[group][idx].checked = !data[group][idx].checked;
+  // 체크 해제 시 주문 펼침 상태도 닫기
+  if (!data[group][idx].checked && orderOpenKey === `${group}:${idx}`) orderOpenKey = null;
+  saveData();
+  render();
+  renderOrderTab();
+}
+
+function updateSummary() {
+  const hostNames = getHostNames();
+  const vis = g => (data[g]||[]).filter(p => !isHidden(p, hostNames));
+
+  const mMembers = vis('male').filter(p => !p.intro);
+  const fMembers = vis('female').filter(p => !p.intro);
+  const mStars = vis('male').filter(p => p.intro);
+  const fStars = vis('female').filter(p => p.intro);
+
+  const m = mMembers.filter(p => p.checked).length;
+  const f = fMembers.filter(p => p.checked).length;
+  const sM = mStars.filter(p => p.checked).length;
+  const sF = fStars.filter(p => p.checked).length;
+  const s = sM + sF;
+
+  document.getElementById('sum-male').textContent = m;
+  document.getElementById('sum-female').textContent = f;
+  document.getElementById('sum-star').textContent = s;
+  document.getElementById('sum-total').textContent = m + f + s;
+
+  document.getElementById('badge-male').textContent =
+    `${m} / ${mMembers.length}명` + (sM ? ` +★${sM}` : '');
+  document.getElementById('badge-female').textContent =
+    `${f} / ${fMembers.length}명` + (sF ? ` +★${sF}` : '');
+}
+
+/* ===== 주최자 탭 렌더 (탭해서 선택) ===== */
+let hostOpenMonth = null;
+
+function parseHostStr(str) {
+  return (str || '').split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function renderHosts() {
+  const list = document.getElementById('hostList');
+  list.innerHTML = '';
+  const currentMonth = getCurrentMonth();
+
+  for (let m = 1; m <= 12; m++) {
+    const key = String(m);
+    const selected = parseHostStr(data.hosts && data.hosts[key]);
+    const isOpen = hostOpenMonth === key;
+
+    const row = document.createElement('div');
+    row.className = 'host-row' + (key === currentMonth ? ' current-month' : '');
+
+    const label = document.createElement('div');
+    label.className = 'host-month';
+    label.textContent = `${m}월`;
+
+    const namesDiv = document.createElement('div');
+    namesDiv.className = 'host-names' + (selected.length ? '' : ' empty');
+    namesDiv.textContent = selected.length ? selected.join(', ') : '탭해서 선택';
+
+    const arrow = document.createElement('div');
+    arrow.className = 'host-arrow';
+    arrow.textContent = isOpen ? '▲' : '▼';
+
+    row.appendChild(label);
+    row.appendChild(namesDiv);
+
+    // 선택된 주최자가 있으면 비우기 버튼 표시
+    if (selected.length) {
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'delete-btn';
+      clearBtn.textContent = '×';
+      clearBtn.title = '이 달 주최자 비우기';
+      clearBtn.onclick = (e) => {
+        e.stopPropagation();
+        data.hosts[key] = '';
+        saveData();
+        renderHosts();
+        render();
+      };
+      row.appendChild(clearBtn);
+    }
+
+    row.appendChild(arrow);
+    row.onclick = () => {
+      hostOpenMonth = isOpen ? null : key;
+      renderHosts();
+    };
+    list.appendChild(row);
+
+    // 펼쳐진 달 → 명단 칩 선택 영역
+    if (isOpen) {
+      const picker = document.createElement('div');
+      picker.className = 'host-picker';
+
+      [['male','👨 형제'], ['female','👩 자매']].forEach(([g, glabel]) => {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'picker-group';
+
+        const gl = document.createElement('div');
+        gl.className = 'picker-label';
+        gl.textContent = glabel;
+        groupDiv.appendChild(gl);
+
+        const chipWrap = document.createElement('div');
+        chipWrap.className = 'chip-wrap';
+
+        (data[g]||[]).filter(p => !p.intro).forEach(p => {
+          const chip = document.createElement('button');
+          chip.className = 'name-chip' + (selected.includes(p.name) ? ' selected' : '');
+          chip.textContent = p.name;
+          chip.onclick = (e) => {
+            e.stopPropagation();
+            toggleHost(key, p.name);
+          };
+          chipWrap.appendChild(chip);
+        });
+
+        groupDiv.appendChild(chipWrap);
+        picker.appendChild(groupDiv);
+      });
+
+      list.appendChild(picker);
+    }
+  }
+}
+
+function toggleHost(key, name) {
+  if (!data.hosts) data.hosts = {};
+  let arr = parseHostStr(data.hosts[key]);
+  if (arr.includes(name)) arr = arr.filter(n => n !== name);
+  else arr.push(name);
+  data.hosts[key] = arr.join(', ');
+  saveData();
+  renderHosts();
+  render();   // 식수 탭 명단/배너/합계 갱신
+  renderOrderTab();
+}
+
+/* ===== 주문표 탭 ===== */
+function setFields(arr) {
+  const month = getCurrentMonth();
+  if (!data.orderFields) data.orderFields = {};
+  data.orderFields[month] = arr;
+  saveData();
+}
+
+// 체크된 사람 목록 (형제 → 자매 순, 주최자 제외)
+function getCheckedPeople() {
+  const hostNames = getHostNames();
+  const out = [];
+  ['male','female'].forEach(g => {
+    (data[g]||[]).forEach(p => {
+      if (isHidden(p, hostNames)) return;
+      if (p.checked) out.push({ ...p, group: g });
+    });
+  });
+  return out;
+}
+
+function renderOrderTab() {
+  const month = getCurrentMonth();
+  document.getElementById('orderTitle').textContent =
+    (month ? `${month}월 ` : '') + '주문표';
+  document.getElementById('orderMonthBadge').textContent = month ? `${month}월` : '-';
+  document.getElementById('noticeMonthBadge').textContent = month ? `${month}월` : '-';
+
+  renderFieldsEditor();
+  renderOrderTable();
+  renderOrderTally();
+  renderNotice();
+}
+
+function renderNotice() {
+  const text = getNotice();
+
+  // 주문표 탭: 편집용 textarea (포커스 중이 아닐 때만 값 갱신)
+  const edit = document.getElementById('noticeEdit');
+  if (edit && document.activeElement !== edit) edit.value = text;
+
+  // 식수 탭: 읽기 전용
+  const el = document.getElementById('checkNoticeBody');
+  if (el) {
+    if (text.trim()) {
+      el.textContent = text;
+      el.classList.remove('empty');
+    } else {
+      el.textContent = '아직 안내사항이 없어요. 주문표 탭에서 작성할 수 있어요.';
+      el.classList.add('empty');
+    }
+  }
+}
+
+function renderFieldsEditor() {
+  const editor = document.getElementById('fieldsEditor');
+  editor.innerHTML = '';
+  const fields = getFields();
+
+  fields.forEach((field, fi) => {
+    const block = document.createElement('div');
+    block.className = 'field-block';
+
+    // 항목 이름 줄
+    const head = document.createElement('div');
+    head.className = 'field-head';
+
+    const nameInp = document.createElement('input');
+    nameInp.className = 'field-name-input';
+    nameInp.type = 'text';
+    nameInp.value = field.name;
+    nameInp.placeholder = '항목 이름 (예: 음료)';
+    nameInp.onblur = () => {
+      const v = nameInp.value.trim();
+      const arr = getFields();
+      if (v) arr[fi].name = v;
+      else arr.splice(fi, 1);
+      setFields(arr);
+      renderOrderTab();
+      render();
+    };
+    nameInp.onkeydown = (e) => { if (e.key === 'Enter') nameInp.blur(); };
+
+    const delField = document.createElement('button');
+    delField.className = 'delete-btn';
+    delField.textContent = '×';
+    delField.title = '항목 삭제';
+    delField.onclick = () => {
+      const arr = getFields();
+      arr.splice(fi, 1);
+      setFields(arr);
+      renderOrderTab();
+      render();
+    };
+
+    head.appendChild(nameInp);
+    head.appendChild(delField);
+    block.appendChild(head);
+
+    // 입력 방식 토글 (선택지 / 직접입력)
+    const typeRow = document.createElement('div');
+    typeRow.className = 'field-type-row';
+    [['choice','목록에서 선택'], ['text','개인 직접입력']].forEach(([val, lbl]) => {
+      const tb = document.createElement('button');
+      tb.className = 'type-toggle' + (field.type === val ? ' active' : '');
+      tb.textContent = lbl;
+      tb.onclick = () => {
+        const arr = getFields();
+        arr[fi].type = val;
+        setFields(arr);
+        renderOrderTab();
+        render();
+      };
+      typeRow.appendChild(tb);
+    });
+    block.appendChild(typeRow);
+
+    if (field.type === 'text') {
+      // 직접입력 항목: 선택지 없음 안내
+      const note = document.createElement('div');
+      note.className = 'field-text-note';
+      note.textContent = '✏️ 식수 체크할 때 개인이 직접 입력합니다.';
+      block.appendChild(note);
+      editor.appendChild(block);
+      return;
+    }
+
+    // 선택지 칩들 (choice 타입만)
+    const optWrap = document.createElement('div');
+    optWrap.className = 'field-opt-wrap';
+
+    field.options.forEach((opt, oi) => {
+      const chip = document.createElement('span');
+      chip.className = 'field-opt-chip';
+      const txt = document.createElement('span');
+      txt.textContent = opt;
+      const x = document.createElement('button');
+      x.className = 'opt-del';
+      x.textContent = '×';
+      x.onclick = () => {
+        const arr = getFields();
+        arr[fi].options.splice(oi, 1);
+        setFields(arr);
+        renderOrderTab();
+        render();
+      };
+      chip.appendChild(txt);
+      chip.appendChild(x);
+      optWrap.appendChild(chip);
+    });
+
+    // 선택지 추가: 입력칸 + ＋버튼 (쉼표로 여러개 한번에)
+    const addBox = document.createElement('div');
+    addBox.className = 'opt-add-box';
+
+    const addOptInp = document.createElement('input');
+    addOptInp.className = 'opt-add-input';
+    addOptInp.type = 'text';
+    addOptInp.placeholder = '선택지 입력 (쉼표로 여러개)';
+    addOptInp.maxLength = 60;
+    addOptInp.dataset.fi = fi;
+    addOptInp.enterKeyHint = 'done';
+    addOptInp.autocapitalize = 'off';
+    addOptInp.autocomplete = 'off';
+
+    const addOptBtn = document.createElement('button');
+    addOptBtn.className = 'opt-add-btn';
+    addOptBtn.textContent = '＋';
+
+    const addOpt = () => {
+      const raw = addOptInp.value.trim();
+      if (!raw) return;
+      const parts = raw.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const arr = getFields();
+      parts.forEach(v => { if (!arr[fi].options.includes(v)) arr[fi].options.push(v); });
+      setFields(arr);
+      renderOrderTab();
+      render();
+      setTimeout(() => {
+        const inps = document.querySelectorAll('.opt-add-input');
+        inps.forEach(el => { if (el.dataset.fi == fi) el.focus(); });
+      }, 60);
+    };
+    addOptBtn.onclick = addOpt;
+    addOptInp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addOpt(); } };
+
+    addBox.appendChild(addOptInp);
+    addBox.appendChild(addOptBtn);
+    optWrap.appendChild(addBox);
+
+    block.appendChild(optWrap);
+    editor.appendChild(block);
+  });
+
+  // 새 항목 추가
+  const addRow = document.createElement('div');
+  addRow.className = 'field-add-row';
+  const addInp = document.createElement('input');
+  addInp.type = 'text';
+  addInp.placeholder = '새 항목 (예: 음료, 음식...)';
+  addInp.maxLength = 20;
+  const addBtn = document.createElement('button');
+  addBtn.textContent = '＋ 항목';
+  const doAdd = () => {
+    const v = addInp.value.trim();
+    if (!v) return;
+    const arr = getFields();
+    arr.push({ name: v, type: 'choice', options: [] });
+    setFields(arr);
+    addInp.value = '';
+    renderOrderTab();
+    render();
+  };
+  addBtn.onclick = doAdd;
+  addInp.onkeydown = (e) => { if (e.key === 'Enter') doAdd(); };
+  addRow.appendChild(addInp);
+  addRow.appendChild(addBtn);
+  editor.appendChild(addRow);
+}
+
+function renderOrderTable() {
+  const area = document.getElementById('orderTableArea');
+  const fields = getFields();
+  const people = getCheckedPeople();
+
+  document.getElementById('orderCountBadge').textContent = `${people.length}명`;
+
+  if (!people.length) {
+    area.innerHTML = `<div class="order-empty-msg">아직 체크된 사람이 없어요.<br>식수 체크 탭에서 체크하면 여기에 표로 모입니다.</div>`;
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'order-table';
+
+  // 헤더
+  const thead = document.createElement('thead');
+  const htr = document.createElement('tr');
+  const numTh = document.createElement('th');
+  numTh.className = 'num-col';
+  numTh.textContent = '#';
+  htr.appendChild(numTh);
+  const nameTh = document.createElement('th');
+  nameTh.textContent = '이름';
+  htr.appendChild(nameTh);
+  fields.forEach(f => {
+    const th = document.createElement('th');
+    th.textContent = f.name;
+    htr.appendChild(th);
+  });
+  thead.appendChild(htr);
+  table.appendChild(thead);
+
+  // 바디
+  const tbody = document.createElement('tbody');
+  people.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    if (p.intro) tr.classList.add('star-order');
+
+    const numTd = document.createElement('td');
+    numTd.className = 'num-col';
+    numTd.textContent = i + 1;
+    tr.appendChild(numTd);
+
+    const nameTd = document.createElement('td');
+    nameTd.className = 'name-col';
+    nameTd.textContent = p.intro ? `★ ${p.name}` : p.name;
+    tr.appendChild(nameTd);
+
+    fields.forEach(f => {
+      const td = document.createElement('td');
+      const v = (p.order && p.order[f.name]) ? p.order[f.name].trim() : '';
+      if (v) td.textContent = v;
+      else { td.textContent = '—'; td.className = 'empty-cell'; }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  area.innerHTML = '';
+  area.appendChild(table);
+}
+
+function renderOrderTally() {
+  const tally = document.getElementById('orderTally');
+  const section = document.getElementById('tallySection');
+  const fields = getFields().filter(f => f.type !== 'text');  // 직접입력(차번호 등)은 집계 제외
+  const people = getCheckedPeople();
+
+  if (!people.length || !fields.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  tally.innerHTML = '';
+
+  fields.forEach(f => {
+    const counts = {};
+    let chosen = 0;
+    people.forEach(p => {
+      const v = (p.order && p.order[f.name]) ? p.order[f.name].trim() : '';
+      if (!v) return;
+      counts[v] = (counts[v] || 0) + 1;
+      chosen++;
+    });
+    const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+
+    const block = document.createElement('div');
+    block.className = 'tally-block';
+
+    const title = document.createElement('div');
+    title.className = 'tally-title';
+    // 제목 옆에 선택/미선택 인원 요약
+    const unchosen = people.length - chosen;
+    title.textContent = `${f.name}  (선택 ${chosen}명${unchosen ? ` · 미선택 ${unchosen}명` : ''})`;
+    block.appendChild(title);
+
+    const listDiv = document.createElement('div');
+    listDiv.className = 'tally-list';
+
+    if (!entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tally-empty';
+      empty.textContent = '아직 선택한 사람이 없어요';
+      listDiv.appendChild(empty);
+    } else {
+      entries.forEach(([val, cnt]) => {
+        const item = document.createElement('div');
+        item.className = 'tally-item';
+        item.innerHTML = `${val}<b>${cnt}</b>`;
+        listDiv.appendChild(item);
+      });
+    }
+    block.appendChild(listDiv);
+    tally.appendChild(block);
+  });
+}
+
+window.copyOrderText = function() {
+  const fields = getFields();
+  const people = getCheckedPeople();
+  if (!people.length) { alert('체크된 사람이 없어요.'); return; }
+
+  const month = getCurrentMonth();
+  let text = `${data.date || ''} 팀별교제 주문 (${people.length}명)\n\n`;
+  people.forEach((p, i) => {
+    const parts = fields
+      .map(f => (p.order && p.order[f.name] && p.order[f.name].trim()) ? p.order[f.name].trim() : null)
+      .filter(Boolean);
+    text += `${i+1}. ${p.intro ? '★' : ''}${p.name}`;
+    if (parts.length) text += ` / ${parts.join(' / ')}`;
+    text += '\n';
+  });
+
+  navigator.clipboard.writeText(text.trim())
+    .then(() => alert('주문 내용이 복사되었어요!'))
+    .catch(() => {
+      // 클립보드 실패 시 프롬프트로 표시
+      window.prompt('아래 내용을 복사하세요', text.trim());
+    });
+};
+
+window.addPerson = function(group) {
+  const inp = document.getElementById(group === 'male' ? 'maleInput' : 'femaleInput');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (!data[group]) data[group] = [];
+  data[group].push(makePerson(name, false));
+  inp.value = '';
+  saveData();
+  render();
+};
+
+window.deletePerson = function(group, idx) {
+  const name = data[group][idx].name;
+  if (!confirm(`"${name}" 을(를) 삭제할까요?`)) return;
+  data[group].splice(idx, 1);
+  saveData();
+  render();
+  renderOrderTab();
+};
+
+window.resetChecks = function() {
+  if (!confirm('모든 식수 체크와 주문 내용을 초기화할까요?\n(이름 명단과 받을 항목은 그대로 유지됩니다)')) return;
+  ['male','female'].forEach(g => (data[g]||[]).forEach(p => { p.checked = false; p.order = {}; }));
+  saveData();
+  render();
+  renderOrderTab();
+};
+
+document.getElementById('maleInput').addEventListener('keydown', e => { if(e.key==='Enter') window.addPerson('male'); });
+document.getElementById('femaleInput').addEventListener('keydown', e => { if(e.key==='Enter') window.addPerson('female'); });
+
+// 안내사항: 입력 중엔 저장만, 포커스 나가면 읽기전용 뷰 갱신
+const noticeEdit = document.getElementById('noticeEdit');
+noticeEdit.addEventListener('input', () => { setNotice(noticeEdit.value); });
+noticeEdit.addEventListener('blur', () => { renderNotice(); });
+
+loadData();
+</script>
+</body>
+</html>
