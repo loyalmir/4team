@@ -265,6 +265,82 @@
   }
   .check-btn:active { transform: scale(0.92); }
 
+  /* 참석/불참 버튼 */
+  .att-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
+    color: transparent;
+  }
+  .att-btn:active { transform: scale(0.92); }
+  .att-btn.attend.on {
+    background: #6fae7a;
+    border-color: #6fae7a;
+    color: white;
+  }
+  .att-btn.absent.on {
+    background: #c86868;
+    border-color: #c86868;
+    color: white;
+  }
+  thead th.att-col { width: 52px; }
+
+  /* 불참자 이름 회색 */
+  .absent-name {
+    color: #b0a58e;
+    text-decoration: line-through;
+  }
+
+  /* 불참 사유 입력 행 */
+  .absent-edit-row td {
+    padding: 8px 12px 12px 24px;
+    background: #f9ecec;
+  }
+  .absent-input-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #a85050;
+    margin-bottom: 6px;
+  }
+  .absent-input-row {
+    display: flex;
+    gap: 6px;
+  }
+  .absent-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 11px;
+    border: 1.5px solid #e0b4b4;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+    background: white;
+    color: var(--text);
+    outline: none;
+  }
+  .absent-input:focus { border-color: #c86868; }
+  .absent-save-btn {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: #c86868;
+    color: white;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
   /* ===== 액션 셀 ===== */
   .action-cell {
     display: flex;
@@ -307,6 +383,12 @@
     background: var(--accent-light);
     border-color: var(--accent);
     color: var(--accent);
+  }
+  .intro-add-btn.open {
+    background: var(--accent);
+    border-color: var(--accent);
+    border-style: solid;
+    color: white;
   }
   .order-toggle-btn {
     font-size: 0.68rem;
@@ -870,9 +952,12 @@
   }
 
   @media (max-width: 480px) {
-    .check-btn { width: 34px; height: 34px; font-size: 1rem; }
-    td { padding: 8px 2px; }
-    td.name-cell { padding-left: 10px; font-size: 0.78rem; }
+    .check-btn { width: 32px; height: 32px; font-size: 0.95rem; }
+    .att-btn { width: 30px; height: 30px; font-size: 0.85rem; }
+    td { padding: 8px 1px; }
+    td.name-cell { padding-left: 8px; font-size: 0.76rem; }
+    thead th.att-col { width: 40px; }
+    thead th { font-size: 0.68rem; padding: 8px 1px; }
   }
 </style>
 </head>
@@ -918,6 +1003,8 @@
       <thead>
         <tr>
           <th class="name-col">이름</th>
+          <th class="att-col">참석</th>
+          <th class="att-col">불참</th>
           <th class="check-col">식수</th>
           <th class="act-col"></th>
         </tr>
@@ -936,6 +1023,8 @@
       <thead>
         <tr>
           <th class="name-col">이름</th>
+          <th class="att-col">참석</th>
+          <th class="att-col">불참</th>
           <th class="check-col">식수</th>
           <th class="act-col"></th>
         </tr>
@@ -1025,11 +1114,22 @@ import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/1
    ═══════════════════════════════════════════════════════════ */
 const FIREBASE_URL = "https://otherteam-2b3f6-default-rtdb.firebaseio.com/";
 
-// 주소에서 팀 번호 자동 인식 (예: /2team/ → "2", /team3/ → "3")
+// 주소에서 팀 번호 자동 인식
+// 경로의 '폴더' 조각들 중 team이 들어간 것을 골라 숫자를 뽑음
+// 예: /2team/ → "2", /team3/index.html → "3", /1team/ → "1"
 function detectTeam() {
-  const path = location.pathname.toLowerCase();
-  const m = path.match(/(\d+)\s*team|team\s*(\d+)/);
-  const num = m ? (m[1] || m[2]) : null;
+  const parts = location.pathname.toLowerCase().split('/').filter(Boolean);
+  // index.html 같은 파일명은 제외하고 폴더 조각만
+  const folders = parts.filter(p => !p.includes('.'));
+  let num = null;
+  // 뒤에서부터(가장 가까운 폴더부터) team 폴더 탐색
+  for (let i = folders.length - 1; i >= 0; i--) {
+    const seg = folders[i];
+    if (seg.includes('team')) {
+      const mm = seg.match(/\d+/);
+      if (mm) { num = mm[0]; break; }
+    }
+  }
   return num ? { num, key: `siksu/team${num}`, label: `${num}팀` }
              : { num: null, key: "siksu/teamday", label: "" };
 }
@@ -1063,7 +1163,7 @@ const DEFAULT_FIELDS = [
 ];
 
 function makePerson(name, intro=false) {
-  return { name, intro, checked: false, order: {} };
+  return { name, intro, checked: false, order: {}, attend: false, absent: false, absentReason: '' };
 }
 
 // 문자열/구버전 항목을 {name, type, options} 구조로 정규화
@@ -1114,6 +1214,9 @@ async function loadData() {
       data[g].forEach(p => {
         if (typeof p.checked !== 'boolean') p.checked = false;
         if (!p.order || typeof p.order !== 'object') p.order = {};
+        if (typeof p.attend !== 'boolean') p.attend = false;
+        if (typeof p.absent !== 'boolean') p.absent = false;
+        if (typeof p.absentReason !== 'string') p.absentReason = '';
       });
     });
     if (!data.orderFields) data.orderFields = {};
@@ -1249,6 +1352,7 @@ function render() {
 let introOpenState = { male: -1, female: -1 };
 let nameEditState = { group: null, idx: -1 };
 let orderOpenKey = null;  // "group:idx" 하나만 펼침 (기본 닫힘)
+let absentEditKey = null; // 불참 사유 입력칸 열린 사람 "group:idx"
 
 function renderGroup(group, tbodyId) {
   const tbody = document.getElementById(tbodyId);
@@ -1303,6 +1407,15 @@ function renderGroup(group, tbodyId) {
       // 일반 표시 + 수정 아이콘
       const nameSpan = document.createElement('span');
       nameSpan.textContent = person.intro ? `★ ${person.name}` : person.name;
+      if (person.absent) {
+        nameSpan.classList.add('absent-name');
+        nameSpan.title = '탭하면 불참 사유';
+        nameSpan.style.cursor = 'pointer';
+        nameSpan.onclick = () => {
+          const reason = (person.absentReason || '').trim();
+          alert(`${person.name} 불참 사유\n\n${reason || '(사유 없음)'}`);
+        };
+      }
       nameTd.appendChild(nameSpan);
 
       const editBtn = document.createElement('button');
@@ -1319,7 +1432,25 @@ function renderGroup(group, tbodyId) {
 
     tr.appendChild(nameTd);
 
-    // 식수 체크 (단일)
+    // 참석 체크
+    const attTd = document.createElement('td');
+    const attBtn = document.createElement('button');
+    attBtn.className = 'att-btn attend' + (person.attend ? ' on' : '');
+    attBtn.textContent = person.attend ? '✓' : '';
+    attBtn.onclick = () => { toggleAttend(group, idx); };
+    attTd.appendChild(attBtn);
+    tr.appendChild(attTd);
+
+    // 불참 체크
+    const absTd = document.createElement('td');
+    const absBtn = document.createElement('button');
+    absBtn.className = 'att-btn absent' + (person.absent ? ' on' : '');
+    absBtn.textContent = person.absent ? '✕' : '';
+    absBtn.onclick = () => { toggleAbsent(group, idx); };
+    absTd.appendChild(absBtn);
+    tr.appendChild(absTd);
+
+    // 식수 체크
     const td = document.createElement('td');
     const btn = document.createElement('button');
     btn.className = 'check-btn' + (person.checked ? ' checked' : '');
@@ -1350,13 +1481,14 @@ function renderGroup(group, tbodyId) {
     }
 
     if (!person.intro) {
+      const isIntroOpen = introOpenState[group] === idx;
       const introBtn = document.createElement('button');
-      introBtn.className = 'intro-add-btn';
-      introBtn.textContent = '+★';
+      introBtn.className = 'intro-add-btn' + (isIntroOpen ? ' open' : '');
+      introBtn.textContent = isIntroOpen ? '★ 닫기' : '+★';
       introBtn.title = '★ 추가';
       introBtn.onclick = (e) => {
         e.stopPropagation();
-        introOpenState[group] = idx;
+        introOpenState[group] = isIntroOpen ? -1 : idx;  // 다시 누르면 접기
         render();
       };
       actDiv.appendChild(introBtn);
@@ -1378,7 +1510,7 @@ function renderGroup(group, tbodyId) {
       const orderTr = document.createElement('tr');
       orderTr.className = 'order-entry-row';
       const orderTd = document.createElement('td');
-      orderTd.colSpan = 3;
+      orderTd.colSpan = 5;
 
       const wrap = document.createElement('div');
       wrap.className = 'order-fields';
@@ -1465,12 +1597,59 @@ function renderGroup(group, tbodyId) {
       tbody.appendChild(orderTr);
     }
 
+    // 불참 사유 입력 행
+    if (person.absent && absentEditKey === `${group}:${idx}`) {
+      const absTr = document.createElement('tr');
+      absTr.className = 'absent-edit-row';
+      const absTd2 = document.createElement('td');
+      absTd2.colSpan = 5;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'absent-input-wrap';
+
+      const label = document.createElement('div');
+      label.className = 'absent-input-label';
+      label.textContent = `✕ ${person.name} 불참 사유`;
+      wrap.appendChild(label);
+
+      const row = document.createElement('div');
+      row.className = 'absent-input-row';
+
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'absent-input';
+      inp.value = person.absentReason || '';
+      inp.placeholder = '사유 입력 (예: 개인사, 지방, 몸살...)';
+      inp.maxLength = 40;
+      inp.oninput = () => { data[group][idx].absentReason = inp.value; };
+
+      const okBtn = document.createElement('button');
+      okBtn.className = 'absent-save-btn';
+      okBtn.textContent = '✓ 저장';
+      okBtn.onclick = () => {
+        data[group][idx].absentReason = inp.value.trim();
+        absentEditKey = null;
+        saveData();
+        render();
+      };
+
+      inp.onkeydown = (e) => { if (e.key === 'Enter') okBtn.click(); };
+
+      row.appendChild(inp);
+      row.appendChild(okBtn);
+      wrap.appendChild(row);
+      absTd2.appendChild(wrap);
+      absTr.appendChild(absTd2);
+      tbody.appendChild(absTr);
+      setTimeout(() => inp.focus(), 50);
+    }
+
     // 초대 추가 인풋 행
     if (!person.intro && introOpenState[group] === idx) {
       const inputTr = document.createElement('tr');
       inputTr.className = 'intro-input-row';
       const inputTd = document.createElement('td');
-      inputTd.colSpan = 3;
+      inputTd.colSpan = 5;
 
       const wrap = document.createElement('div');
       wrap.className = 'intro-input-wrap';
@@ -1515,9 +1694,48 @@ function renderGroup(group, tbodyId) {
 }
 
 function toggleCheck(group, idx) {
-  data[group][idx].checked = !data[group][idx].checked;
+  const p = data[group][idx];
+  // 이미 체크된 걸 다시 누르면 취소 확인
+  if (p.checked && !confirm(`${p.name} 님의 식수 체크를 취소할까요?`)) return;
+  p.checked = !p.checked;
   // 체크 해제 시 주문 펼침 상태도 닫기
-  if (!data[group][idx].checked && orderOpenKey === `${group}:${idx}`) orderOpenKey = null;
+  if (!p.checked && orderOpenKey === `${group}:${idx}`) orderOpenKey = null;
+  saveData();
+  render();
+  renderOrderTab();
+}
+
+function toggleAttend(group, idx) {
+  const p = data[group][idx];
+  if (p.attend) {
+    // 참석 취소 확인
+    if (!confirm(`${p.name} 님의 참석 표시를 취소할까요?`)) return;
+    p.attend = false;
+  } else {
+    p.attend = true;
+    p.absent = false;         // 참석↔불참 배타적
+    p.absentReason = '';
+  }
+  saveData();
+  render();
+  renderOrderTab();
+}
+
+function toggleAbsent(group, idx) {
+  const p = data[group][idx];
+  if (p.absent) {
+    // 불참 취소 확인
+    if (!confirm(`${p.name} 님의 불참을 취소할까요?`)) return;
+    p.absent = false;
+    p.absentReason = '';
+    if (absentEditKey === `${group}:${idx}`) absentEditKey = null;
+  } else {
+    p.absent = true;
+    p.attend = false;         // 배타적
+    p.checked = false;        // 불참이면 식수도 해제
+    if (orderOpenKey === `${group}:${idx}`) orderOpenKey = null;
+    absentEditKey = `${group}:${idx}`;   // 사유 입력칸 자동으로 열기
+  }
   saveData();
   render();
   renderOrderTab();
@@ -1543,10 +1761,15 @@ function updateSummary() {
   document.getElementById('sum-star').textContent = s;
   document.getElementById('sum-total').textContent = m + f + s;
 
+  const attM = mMembers.filter(p => p.attend).length;
+  const attF = fMembers.filter(p => p.attend).length;
+  const absM = mMembers.filter(p => p.absent).length;
+  const absF = fMembers.filter(p => p.absent).length;
+
   document.getElementById('badge-male').textContent =
-    `${m} / ${mMembers.length}명` + (sM ? ` +★${sM}` : '');
+    `식수 ${m}` + (sM ? `+★${sM}` : '') + ` · 참석 ${attM} · 불참 ${absM} / ${mMembers.length}명`;
   document.getElementById('badge-female').textContent =
-    `${f} / ${fMembers.length}명` + (sF ? ` +★${sF}` : '');
+    `식수 ${f}` + (sF ? `+★${sF}` : '') + ` · 참석 ${attF} · 불참 ${absF} / ${fMembers.length}명`;
 }
 
 /* ===== 주최자 탭 렌더 (탭해서 선택) ===== */
@@ -2040,8 +2263,12 @@ window.deletePerson = function(group, idx) {
 };
 
 window.resetChecks = function() {
-  if (!confirm('모든 식수 체크와 주문 내용을 초기화할까요?\n(이름 명단과 받을 항목은 그대로 유지됩니다)')) return;
-  ['male','female'].forEach(g => (data[g]||[]).forEach(p => { p.checked = false; p.order = {}; }));
+  if (!confirm('모든 체크(참석·불참·식수·사유·주문)를 초기화할까요?\n(이름 명단과 받을 항목은 그대로 유지됩니다)')) return;
+  ['male','female'].forEach(g => (data[g]||[]).forEach(p => {
+    p.checked = false; p.order = {}; p.attend = false; p.absent = false; p.absentReason = '';
+  }));
+  absentEditKey = null;
+  orderOpenKey = null;
   saveData();
   render();
   renderOrderTab();
