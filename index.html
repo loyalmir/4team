@@ -129,6 +129,19 @@
   .host-banner strong { color: var(--accent); }
 
   /* ===== 요약 ===== */
+  .summary-total-bar {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 5px;
+    background: var(--accent);
+    border-radius: 10px;
+    padding: 6px 14px;
+    margin-bottom: 8px;
+  }
+  .summary-total-bar .total-label { font-size: 0.72rem; color: rgba(255,255,255,0.85); font-weight: 600; }
+  .summary-total-bar .total-count { font-size: 1.15rem; font-weight: 700; color: white; }
+  .summary-total-bar .total-unit { font-size: 0.72rem; color: rgba(255,255,255,0.85); }
   .summary-bar {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -142,11 +155,12 @@
     padding: 9px 4px;
     text-align: center;
   }
-  .summary-card.total { border-color: var(--accent); }
+  .summary-card.siksu-card { border-color: var(--accent); }
   .summary-card .day-label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 2px; }
   .summary-card .day-count { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
   .summary-card.male-card .day-count { color: #4a78a8; }
   .summary-card.female-card .day-count { color: #c86878; }
+  .summary-card.siksu-card .day-count { color: var(--accent); }
   .summary-card.star-card .day-count { color: #c8a23a; }
 
   /* ===== 테이블 ===== */
@@ -377,6 +391,9 @@
     cursor: pointer;
     white-space: nowrap;
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
     transition: background 0.15s, border-color 0.15s;
     flex-shrink: 0;
   }
@@ -996,11 +1013,16 @@
     <div class="notice-body" id="checkNoticeBody"></div>
   </div>
 
+  <div class="summary-total-bar">
+    <span class="total-label">전체 참석</span>
+    <span class="total-count" id="sum-total">-</span>
+    <span class="total-unit">명</span>
+  </div>
   <div class="summary-bar">
     <div class="summary-card male-card"><div class="day-label">형제</div><div class="day-count" id="sum-male">-</div></div>
     <div class="summary-card female-card"><div class="day-label">자매</div><div class="day-count" id="sum-female">-</div></div>
+    <div class="summary-card siksu-card"><div class="day-label">식수</div><div class="day-count" id="sum-siksu">-</div></div>
     <div class="summary-card star-card"><div class="day-label">★</div><div class="day-count" id="sum-star">-</div></div>
-    <div class="summary-card total"><div class="day-label">전체</div><div class="day-count" id="sum-total">-</div></div>
   </div>
 
   <div class="table-section">
@@ -1490,7 +1512,7 @@ function renderGroup(group, tbodyId) {
       const isIntroOpen = introOpenState[group] === idx;
       const introBtn = document.createElement('button');
       introBtn.className = 'intro-add-btn' + (isIntroOpen ? ' open' : '');
-      introBtn.textContent = isIntroOpen ? '★ 닫기' : '+★';
+      introBtn.textContent = isIntroOpen ? '✕★' : '+★';
       introBtn.title = '★ 추가';
       introBtn.onclick = (e) => {
         e.stopPropagation();
@@ -1701,6 +1723,11 @@ function renderGroup(group, tbodyId) {
 
 function toggleCheck(group, idx) {
   const p = data[group][idx];
+  // 참석하지 않은 사람은 식수 체크 불가
+  if (!p.checked && !p.attend) {
+    alert(`${p.name} 님을 먼저 '참석'으로 체크해 주세요.`);
+    return;
+  }
   // 이미 체크된 걸 다시 누르면 취소 확인
   if (p.checked && !confirm(`${p.name} 님의 식수 체크를 취소할까요?`)) return;
   p.checked = !p.checked;
@@ -1717,10 +1744,15 @@ function toggleAttend(group, idx) {
     // 참석 취소 확인
     if (!confirm(`${p.name} 님의 참석 표시를 취소할까요?`)) return;
     p.attend = false;
+    p.checked = false;   // 참석 취소하면 식수도 해제
+    if (orderOpenKey === `${group}:${idx}`) orderOpenKey = null;
   } else {
+    // 불참 상태에서 참석으로 바꿀 때 확인
+    if (p.absent && !confirm(`${p.name} 님을 불참 → 참석으로 바꿀까요?`)) return;
     p.attend = true;
     p.absent = false;         // 참석↔불참 배타적
     p.absentReason = '';
+    if (absentEditKey === `${group}:${idx}`) absentEditKey = null;
   }
   saveData();
   render();
@@ -1736,6 +1768,8 @@ function toggleAbsent(group, idx) {
     p.absentReason = '';
     if (absentEditKey === `${group}:${idx}`) absentEditKey = null;
   } else {
+    // 참석 상태에서 불참으로 바꿀 때 확인
+    if (p.attend && !confirm(`${p.name} 님을 참석 → 불참으로 바꿀까요?`)) return;
     p.absent = true;
     p.attend = false;         // 배타적
     p.checked = false;        // 불참이면 식수도 해제
@@ -1756,26 +1790,27 @@ function updateSummary() {
   const mStars = vis('male').filter(p => p.intro);
   const fStars = vis('female').filter(p => p.intro);
 
-  const m = mMembers.filter(p => p.checked).length;
-  const f = fMembers.filter(p => p.checked).length;
-  const sM = mStars.filter(p => p.checked).length;
-  const sF = fStars.filter(p => p.checked).length;
-  const s = sM + sF;
-
-  document.getElementById('sum-male').textContent = m;
-  document.getElementById('sum-female').textContent = f;
-  document.getElementById('sum-star').textContent = s;
-  document.getElementById('sum-total').textContent = m + f + s;
-
+  // 형제·자매 = 참석 수
   const attM = mMembers.filter(p => p.attend).length;
   const attF = fMembers.filter(p => p.attend).length;
+  // 별 = 초대(★) 참석 수
+  const attStar = mStars.filter(p => p.attend).length + fStars.filter(p => p.attend).length;
+  // 식수 = 식수 체크한 총 수 (멤버 + 초대)
+  const siksu = vis('male').filter(p => p.checked).length + vis('female').filter(p => p.checked).length;
+  // 불참 (배지용)
   const absM = mMembers.filter(p => p.absent).length;
   const absF = fMembers.filter(p => p.absent).length;
 
+  document.getElementById('sum-male').textContent = attM;
+  document.getElementById('sum-female').textContent = attF;
+  document.getElementById('sum-siksu').textContent = siksu;
+  document.getElementById('sum-star').textContent = attStar;
+  document.getElementById('sum-total').textContent = attM + attF + attStar;
+
   document.getElementById('badge-male').textContent =
-    `식수 ${m}` + (sM ? `+★${sM}` : '') + ` · 참석 ${attM} · 불참 ${absM} / ${mMembers.length}명`;
+    `참석 ${attM} · 불참 ${absM} · 식수 ${mMembers.filter(p=>p.checked).length} / ${mMembers.length}명`;
   document.getElementById('badge-female').textContent =
-    `식수 ${f}` + (sF ? `+★${sF}` : '') + ` · 참석 ${attF} · 불참 ${absF} / ${fMembers.length}명`;
+    `참석 ${attF} · 불참 ${absF} · 식수 ${fMembers.filter(p=>p.checked).length} / ${fMembers.length}명`;
 }
 
 /* ===== 주최자 탭 렌더 (탭해서 선택) ===== */
