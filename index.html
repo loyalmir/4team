@@ -1139,6 +1139,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 /* ═══════════════════════════════════════════════════════════
    ⚙️ 설정 — 이 파일 하나로 모든 팀에서 씁니다
@@ -1182,7 +1183,8 @@ const DB_PATH = TEAM.key;
 const DEFAULT_MALE = [];
 const DEFAULT_FEMALE = [];
 
-const app = initializeApp({ databaseURL: FIREBASE_URL });
+const app = initializeApp({ apiKey: "AIzaSyAKFqwLIuDLuyuMGD66qbc_HZu5PLtEAGI", authDomain: "otherteam-2b3f6.firebaseapp.com", databaseURL: FIREBASE_URL, projectId: "otherteam-2b3f6", appId: "1:891731914038:web:2471d516512e991d5d5797" });
+try { await signInAnonymously(getAuth(app)); } catch (e) { console.warn("익명 로그인 실패", e); }
 const db = getDatabase(app);
 
 let data = { date: "날짜를 입력하세요", male: [], female: [], hosts: {} };
